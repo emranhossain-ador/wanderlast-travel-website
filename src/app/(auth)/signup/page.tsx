@@ -5,6 +5,8 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useState, type FormEvent } from "react";
 import { Lock, Mail, User } from "lucide-react";
+import { signUp } from "@/lib/auth-client";
+import { error } from "console";
 
 const inputClass =
     "block h-10 w-full rounded-md bg-neutral-100 pl-10 pr-3 text-sm text-neutral-900 outline-none transition-colors placeholder:text-neutral-500 focus:bg-white focus:ring-1 focus:ring-brand";
@@ -88,7 +90,7 @@ export default function SignUpPage() {
         setError(null);
     };
 
-    const handleSubmit = (event: FormEvent<HTMLFormElement>) => {
+    const handleSubmit = async (event: FormEvent<HTMLFormElement>) => {
         event.preventDefault();
 
         if (form.password !== form.confirmPassword) {
@@ -96,7 +98,22 @@ export default function SignUpPage() {
             return;
         }
 
-        // Demo only: no real auth backend yet.
+        const { error } = await signUp.email({
+            email: form.email,
+            password: form.password,
+            name: form.fullName,
+        });
+
+        if (error) {
+            setError(error?.message || "Something went wrong. Please try again later.");
+            return;
+        }
+        setForm({
+            fullName: "",
+            email: "",
+            password: "",
+            confirmPassword: "",
+        });
         router.push("/profile");
     };
 

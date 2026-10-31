@@ -1,10 +1,13 @@
-
 "use client";
 
 import Image from "next/image";
 import Link from "next/link";
-import { useState } from "react";
-import { destinations } from "@/lib/destinations";
+import { useEffect, useState } from "react";
+import {
+    fetchApiDestinations,
+    toDestination,
+    type Destination,
+} from "@/lib/destinations";
 import {
     ArrowUpRight,
     CalendarDays,
@@ -23,9 +26,9 @@ const categoryOptions = [
 
 const priceOptions = [
     { label: "Price Range", min: 0, max: Number.POSITIVE_INFINITY },
-    { label: "Under $2,500", min: 0, max: 2500 },
-    { label: "$2,500 - $3,000", min: 2500, max: 3000 },
-    { label: "Over $3,000", min: 3000, max: Number.POSITIVE_INFINITY },
+    { label: "Under $500", min: 0, max: 500 },
+    { label: "$500 - $1,000", min: 500, max: 1000 },
+    { label: "Over $1,000", min: 1000, max: Number.POSITIVE_INFINITY },
 ];
 
 const sortOptions = [
@@ -39,6 +42,50 @@ export default function DestinationsPage() {
     const [category, setCategory] = useState(categoryOptions[0]);
     const [priceRange, setPriceRange] = useState(priceOptions[0].label);
     const [sort, setSort] = useState(sortOptions[0]);
+
+    // Destinations are loaded from the travel API in the browser.
+    const [destinations, setDestinations] = useState<Destination[]>([]);
+    const [loading, setLoading] = useState(true);
+    const [error, setError] = useState<string | null>(null);
+    const [reloadKey, setReloadKey] = useState(0);
+
+    useEffect(() => {
+        let cancelled = false;
+
+        async function loadDestinations() {
+            try {
+                const items = await fetchApiDestinations();
+
+                if (!cancelled) {
+                    setDestinations(items.map((item) => toDestination(item)));
+                    setError(null);
+                }
+            } catch (err) {
+                if (!cancelled) {
+                    setError(
+                        err instanceof Error
+                            ? err.message
+                            : "Something went wrong while loading destinations."
+                    );
+                }
+            } finally {
+                if (!cancelled) {
+                    setLoading(false);
+                }
+            }
+        }
+
+        loadDestinations();
+
+        return () => {
+            cancelled = true;
+        };
+    }, [reloadKey]);
+
+    const retry = () => {
+        setLoading(true);
+        setReloadKey((key) => key + 1);
+    };
 
     const selectedPrice =
         priceOptions.find((option) => option.label === priceRange) ??
@@ -65,7 +112,7 @@ export default function DestinationsPage() {
         );
     } else if (sort === sortOptions[3]) {
         visibleDestinations = [...visibleDestinations].sort(
-            (a, b) => b.rating - a.rating
+            (a, b) => (b.rating ?? 0) - (a.rating ?? 0)
         );
     }
 
@@ -144,104 +191,136 @@ export default function DestinationsPage() {
                     </label>
                 </div>
 
-                {/* Result count */}
-                <p className="mb-5 mt-4 text-sm text-neutral-500">
-                    Showing {visibleDestinations.length} destinations
-                </p>
-
-                {/* Destination grid */}
-                <section
-                    className="grid gap-x-4 gap-y-8 sm:grid-cols-2 lg:grid-cols-3"
-                    aria-label="Destinations"
-                >
-                    {visibleDestinations.map((destination) => (
-                        <article key={destination.id} className="group">
-                            <Link
-                                href={`/destinations/details/${destination.id}`}
-                                className="relative block aspect-[16/9] overflow-hidden bg-neutral-100"
-                            >
-                                <Image
-                                    src={destination.image}
-                                    alt={destination.title}
-                                    fill
-                                    sizes="(max-width: 640px) 100vw, (max-width: 1024px) 50vw, 33vw"
-                                    className="object-cover transition-transform duration-500 group-hover:scale-105"
-                                />
-
-                                <span className="absolute right-2.5 top-2.5 flex items-center gap-1 rounded-[4px] bg-white px-2 py-1 text-xs font-medium text-neutral-900 shadow-sm">
-                                    {destination.rating}
-                                    <Star
-                                        className="size-3.5 fill-current"
-                                        aria-hidden
-                                    />
-                                </span>
-                            </Link>
-
-                            <div className="mt-3">
-                                <p className="flex items-center gap-1.5 text-[13px] text-neutral-500">
-                                    <MapPin
-                                        className="size-3.5 shrink-0"
-                                        strokeWidth={1.75}
-                                        aria-hidden
-                                    />
-                                    {destination.location}
-                                </p>
-
-                                <div className="mt-1.5 flex items-baseline justify-between gap-3">
-                                    <h2 className="text-lg font-medium tracking-tight text-neutral-900">
-                                        <Link
-                                            href={`/destinations/details/${destination.id}`}
-                                            className="transition-colors hover:text-brand"
-                                        >
-                                            {destination.title}
-                                        </Link>
-                                    </h2>
-
-                                    <p className="shrink-0">
-                                        <span className="text-lg font-semibold tracking-tight text-neutral-900">
-                                            ${destination.price}
-                                        </span>
-                                        <span className="text-xs text-neutral-500">
-                                            /Person
-                                        </span>
-                                    </p>
-                                </div>
-
-                                <p className="mt-1.5 flex items-center gap-1.5 text-[13px] text-neutral-500">
-                                    <CalendarDays
-                                        className="size-3.5 shrink-0"
-                                        strokeWidth={1.75}
-                                        aria-hidden
-                                    />
-                                    {destination.duration}
-                                </p>
-
-                                <Link
-                                    href="/my-bookings"
-                                    className="mt-3 inline-flex items-center gap-1 text-[11px] font-medium uppercase tracking-[0.08em] text-brand transition-colors hover:text-brand/80"
-                                >
-                                    Book Now
-                                    <ArrowUpRight
-                                        className="size-3.5"
-                                        strokeWidth={1.75}
-                                        aria-hidden
-                                    />
-                                </Link>
-                            </div>
-                        </article>
-                    ))}
-                </section>
-
-                {/* Empty state */}
-                {visibleDestinations.length === 0 && (
-                    <div className="border border-dashed border-border px-5 py-16 text-center">
+                {/* Results */}
+                {loading ? (
+                    <p
+                        role="status"
+                        className="mb-5 mt-4 text-sm text-neutral-500"
+                    >
+                        Loading destinations...
+                    </p>
+                ) : error ? (
+                    <div
+                        role="alert"
+                        className="mt-4 border border-dashed border-border px-5 py-16 text-center"
+                    >
                         <p className="text-2xl font-medium text-neutral-900">
-                            No destinations found
+                            Could not load destinations
                         </p>
-                        <p className="mt-2 text-sm text-neutral-500">
-                            Try adjusting the filters to see more results.
-                        </p>
+                        <p className="mt-2 text-sm text-neutral-500">{error}</p>
+                        <button
+                            type="button"
+                            onClick={retry}
+                            className="mt-5 inline-flex h-10 items-center bg-brand px-4 text-sm font-medium text-white transition-colors hover:bg-brand/90"
+                        >
+                            Try again
+                        </button>
                     </div>
+                ) : (
+                    <>
+                        {/* Result count */}
+                        <p className="mb-5 mt-4 text-sm text-neutral-500">
+                            Showing {visibleDestinations.length} destinations
+                        </p>
+
+                        {/* Destination grid */}
+                        <section
+                            className="grid gap-x-4 gap-y-8 sm:grid-cols-2 lg:grid-cols-3"
+                            aria-label="Destinations"
+                        >
+                            {visibleDestinations.map((destination) => (
+                                <article key={destination.id} className="group">
+                                    <Link
+                                        href={`/destinations/details/${destination.id}`}
+                                        className="relative block aspect-[16/9] overflow-hidden bg-neutral-100"
+                                    >
+                                        <Image
+                                            src={destination.image}
+                                            alt={destination.title}
+                                            fill
+                                            sizes="(max-width: 640px) 100vw, (max-width: 1024px) 50vw, 33vw"
+                                            className="object-cover transition-transform duration-500 group-hover:scale-105"
+                                        />
+
+                                        {destination.rating != null && (
+                                            <span className="absolute right-2.5 top-2.5 flex items-center gap-1 rounded-[4px] bg-white px-2 py-1 text-xs font-medium text-neutral-900 shadow-sm">
+                                                {destination.rating}
+                                                <Star
+                                                    className="size-3.5 fill-current"
+                                                    aria-hidden
+                                                />
+                                            </span>
+                                        )}
+                                    </Link>
+
+                                    <div className="mt-3">
+                                        <p className="flex items-center gap-1.5 text-[13px] text-neutral-500">
+                                            <MapPin
+                                                className="size-3.5 shrink-0"
+                                                strokeWidth={1.75}
+                                                aria-hidden
+                                            />
+                                            {destination.location}
+                                        </p>
+
+                                        <div className="mt-1.5 flex items-baseline justify-between gap-3">
+                                            <h2 className="text-lg font-medium tracking-tight text-neutral-900">
+                                                <Link
+                                                    href={`/destinations/details/${destination.id}`}
+                                                    className="transition-colors hover:text-brand"
+                                                >
+                                                    {destination.title}
+                                                </Link>
+                                            </h2>
+
+                                            <p className="shrink-0">
+                                                <span className="text-lg font-semibold tracking-tight text-neutral-900">
+                                                    ${destination.price}
+                                                </span>
+                                                <span className="text-xs text-neutral-500">
+                                                    /Person
+                                                </span>
+                                            </p>
+                                        </div>
+
+                                        <p className="mt-1.5 flex items-center gap-1.5 text-[13px] text-neutral-500">
+                                            <CalendarDays
+                                                className="size-3.5 shrink-0"
+                                                strokeWidth={1.75}
+                                                aria-hidden
+                                            />
+                                            {destination.duration}
+                                        </p>
+
+                                        <Link
+                                            href="/my-bookings"
+                                            className="mt-3 inline-flex items-center gap-1 text-[11px] font-medium uppercase tracking-[0.08em] text-brand transition-colors hover:text-brand/80"
+                                        >
+                                            Book Now
+                                            <ArrowUpRight
+                                                className="size-3.5"
+                                                strokeWidth={1.75}
+                                                aria-hidden
+                                            />
+                                        </Link>
+                                    </div>
+                                </article>
+                            ))}
+                        </section>
+
+                        {/* Empty state */}
+                        {visibleDestinations.length === 0 && (
+                            <div className="border border-dashed border-border px-5 py-16 text-center">
+                                <p className="text-2xl font-medium text-neutral-900">
+                                    No destinations found
+                                </p>
+                                <p className="mt-2 text-sm text-neutral-500">
+                                    Try adjusting the filters to see more
+                                    results.
+                                </p>
+                            </div>
+                        )}
+                    </>
                 )}
             </div>
         </main>

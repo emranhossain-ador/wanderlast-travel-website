@@ -5,14 +5,16 @@ import Image from "next/image";
 import { useState, type ChangeEvent } from "react";
 import {
     Camera,
-    Check,
     DollarSign,
     Globe,
+    LogOut,
     MapPin,
     Pencil,
     Plane,
     TrendingUp,
 } from "lucide-react";
+import { signOut, useSession } from "@/lib/auth-client";
+import { useRouter } from "next/navigation";
 
 type Stat = {
     label: string;
@@ -48,19 +50,18 @@ const stats: Stat[] = [
     },
 ];
 
-const details = [
-    { label: "Member since", value: "Mar 2024" },
-    { label: "Nationality", value: "United States" },
-];
+const formateDate = (date: Date) => {
+    return new Date(date).toLocaleDateString("en-US", {
+        year: "numeric",
+        month: "long",
+        day: "numeric",
+    });
+};
 
-const editInputClass =
-    "block h-10 w-full rounded-md bg-neutral-100 px-3 text-sm text-neutral-900 outline-none transition-colors focus:bg-white focus:ring-1 focus:ring-brand";
 
 export default function UserProfile() {
+    const router = useRouter();
     const [avatarUrl, setAvatarUrl] = useState("/images/person2.png");
-    const [name, setName] = useState("Sarah Mitchell");
-    const [location, setLocation] = useState("San Francisco, CA");
-    const [isEditing, setIsEditing] = useState(false);
 
     const handlePhotoChange = (event: ChangeEvent<HTMLInputElement>) => {
         const file = event.target.files?.[0];
@@ -69,6 +70,25 @@ export default function UserProfile() {
             setAvatarUrl(URL.createObjectURL(file));
         }
     };
+
+    const userData = useSession();
+    const user = userData.data?.user;
+
+    if (!user) {
+        return
+    }
+
+
+    const handleSignOut = async () => {
+        await signOut({
+            fetchOptions: {
+                onSuccess: () => {
+                    router.push("/signin");
+                },
+            },
+        });
+    }
+
 
     return (
         <main className="min-h-screen flex-1 bg-white px-5 py-10 sm:px-8 sm:py-12">
@@ -91,7 +111,7 @@ export default function UserProfile() {
                             <div className="relative size-28">
                                 <Image
                                     src={avatarUrl}
-                                    alt={name}
+                                    alt={user.name}
                                     fill
                                     sizes="112px"
                                     className="rounded-full object-cover"
@@ -111,82 +131,50 @@ export default function UserProfile() {
                                 </label>
                             </div>
 
-                            {isEditing ? (
-                                <div className="mt-4 w-full space-y-2">
-                                    <label className="block">
-                                        <span className="sr-only">Name</span>
-                                        <input
-                                            type="text"
-                                            value={name}
-                                            onChange={(event) =>
-                                                setName(event.target.value)
-                                            }
-                                            className={editInputClass}
-                                        />
-                                    </label>
+                            <p className="mt-4 text-lg font-medium text-neutral-900">
+                                {user.name}
+                            </p>
 
-                                    <label className="block">
-                                        <span className="sr-only">Location</span>
-                                        <input
-                                            type="text"
-                                            value={location}
-                                            onChange={(event) =>
-                                                setLocation(event.target.value)
-                                            }
-                                            className={editInputClass}
-                                        />
-                                    </label>
+                            <p className="mt-1 flex items-center justify-center gap-1.5 text-sm text-neutral-500">
+                                <MapPin
+                                    className="size-4 shrink-0"
+                                    strokeWidth={1.75}
+                                    aria-hidden
+                                />
+                                San Francisco, CA
+                            </p>
+
+                            <div className="mt-6 w-full space-y-3">
+                                <div
+                                    className="flex items-center justify-between gap-3 text-sm"
+                                >
+                                    <dt className="text-neutral-500">
+                                        Member since
+                                    </dt>
+                                    <dd className="font-semibold text-neutral-900">
+                                        {user?.createdAt
+                                            ? formateDate(user.createdAt)
+                                            : "N/A"}
+                                    </dd>
                                 </div>
-                            ) : (
-                                <>
-                                    <p className="mt-4 text-lg font-medium text-neutral-900">
-                                        {name}
-                                    </p>
+                            </div>
 
-                                    <p className="mt-1 flex items-center justify-center gap-1.5 text-sm text-neutral-500">
-                                        <MapPin
-                                            className="size-4 shrink-0"
-                                            strokeWidth={1.75}
-                                            aria-hidden
-                                        />
-                                        {location}
-                                    </p>
-                                </>
-                            )}
-
-                            <dl className="mt-6 w-full space-y-3">
-                                {details.map((detail) => (
-                                    <div
-                                        key={detail.label}
-                                        className="flex items-center justify-between gap-3 text-sm"
-                                    >
-                                        <dt className="text-neutral-500">
-                                            {detail.label}
-                                        </dt>
-                                        <dd className="font-semibold text-neutral-900">
-                                            {detail.value}
-                                        </dd>
-                                    </div>
-                                ))}
-                            </dl>
-
-                            <button
-                                type="button"
-                                onClick={() => setIsEditing((current) => !current)}
-                                className="mt-6 flex h-11 w-full items-center justify-center gap-2 bg-brand text-sm font-medium text-white transition-colors hover:bg-brand/90"
-                            >
-                                {isEditing ? (
-                                    <>
-                                        <Check className="size-4" strokeWidth={1.75} aria-hidden />
-                                        Save Changes
-                                    </>
-                                ) : (
-                                    <>
-                                        <Pencil className="size-4" strokeWidth={1.75} aria-hidden />
-                                        Edit Profile
-                                    </>
-                                )}
-                            </button>
+                            <div className="space-y-1 w-full">
+                                <button
+                                    type="button"
+                                    className="mt-6 flex h-11 w-full cursor-pointer items-center justify-center gap-2 bg-brand text-sm font-medium text-white transition-colors hover:bg-brand/90"
+                                >
+                                    <Pencil className="size-4" strokeWidth={1.75} aria-hidden />
+                                    Edit Profile
+                                </button>
+                                <button
+                                    type="button"
+                                    className="flex h-11 w-full cursor-pointer items-center justify-center gap-2 bg-red-600 text-sm font-medium text-white transition-colors hover:bg-red-600" onClick={handleSignOut}
+                                >
+                                    <LogOut className="size-4" strokeWidth={1.75} aria-hidden />
+                                    Logout
+                                </button>
+                            </div>
                         </div>
                     </section>
 

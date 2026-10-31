@@ -5,6 +5,7 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useState, type FormEvent } from "react";
 import { Lock, Mail } from "lucide-react";
+import { signIn } from "@/lib/auth-client";
 
 const inputClass =
     "block h-10 w-full rounded-md bg-neutral-100 pl-10 pr-3 text-sm text-neutral-900 outline-none transition-colors placeholder:text-neutral-500 focus:bg-white focus:ring-1 focus:ring-brand";
@@ -85,8 +86,25 @@ export default function SigninPage() {
         setForm((current) => ({ ...current, [field]: value }));
     };
 
-    const handleSubmit = (event: FormEvent<HTMLFormElement>) => {
+    const handleSubmit = async (event: FormEvent<HTMLFormElement>) => {
         event.preventDefault();
+
+        const { error } = await signIn.email({
+            email: form.email,
+            password: form.password,
+            rememberMe: form.rememberMe,
+        });
+
+        if (error) {
+            alert(error?.message || "Something went wrong. Please try again later.")
+            return;
+        }
+
+        setForm({
+            email: "",
+            password: "",
+            rememberMe: false,
+        });
 
         // Demo only: no real auth backend yet.
         router.push("/profile");
@@ -108,7 +126,7 @@ export default function SigninPage() {
                 {/* Sign in card */}
                 <form
                     onSubmit={handleSubmit}
-                    className="mx-auto mt-8 w-full max-w-[400px] border border-border bg-white p-6 sm:p-7"
+                    className="mx-auto mt-8 w-full max-w-100 border border-border bg-white p-6 sm:p-7"
                 >
                     <div className="space-y-4">
                         <FormField

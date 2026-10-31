@@ -1,14 +1,16 @@
 export type DestinationCategory = "Beach" | "Mountain" | "Adventure" | "Desert";
 
 export type Destination = {
-    id: number;
+    // `number` for the built-in seed data, `string` for API records (Mongo `_id`).
+    id: number | string;
     title: string;
     location: string;
     image: string;
     category: DestinationCategory;
     price: number;
     duration: string;
-    rating: number;
+    // API records do not carry a rating yet.
+    rating?: number;
 };
 
 export const destinations: Destination[] = [
@@ -75,13 +77,16 @@ export const destinations: Destination[] = [
 ];
 
 export type DestinationDetails = {
-    id: number;
+    // `number` for the built-in seed data, `string` for API records (Mongo `_id`).
+    id: number | string;
     title: string;
     country: string;
+    category: DestinationCategory;
     image: string;
     price: number;
-    rating: number;
-    reviews: number;
+    // API records do not carry a rating or review count yet.
+    rating?: number;
+    reviews?: number;
     duration: string;
     departureDate: string;
     overview: string;
@@ -116,6 +121,7 @@ export const destinationDetails: DestinationDetails[] = destinations.map(
     (destination) => ({
         id: destination.id,
         title: destination.title,
+        category: destination.category,
         image: destination.image,
         ...detailsTemplate,
     })
@@ -125,4 +131,86 @@ export function getDestinationDetails(id: string) {
     return destinationDetails.find(
         (destination) => String(destination.id) === id
     );
+}
+
+// ---------------------------------------------------------------------------
+// Travel API (http://localhost:5001)
+// ---------------------------------------------------------------------------
+
+export type ApiDestination = {
+    _id: string;
+    destinationName: string;
+    country: string;
+    category: DestinationCategory;
+    price: string | number;
+    duration: string;
+    departureDate: string;
+    imageUrl: string;
+    description: string;
+};
+
+const TRAVEL_API_BASE_URL = "http://localhost:5001";
+
+export const DESTINATIONS_API_URL = `${TRAVEL_API_BASE_URL}/destinations`;
+
+function destinationApiUrl(id: string) {
+    return `${TRAVEL_API_BASE_URL}/destination/${encodeURIComponent(id)}`;
+}
+
+export async function fetchApiDestinations(): Promise<ApiDestination[]> {
+    const response = await fetch(DESTINATIONS_API_URL);
+
+    if (!response.ok) {
+        throw new Error(`Failed to load destinations (${response.status})`);
+    }
+
+    return response.json();
+}
+
+/**
+ * Fetch a single destination: GET http://localhost:5001/destination/:id
+ *
+ * Returns `null` when the API does not know the id (it answers non-2xx).
+ * Network failures reject so the caller can surface the real error.
+ */
+export async function fetchApiDestination(
+    id: string
+): Promise<ApiDestination | null> {
+    const response = await fetch(destinationApiUrl(id));
+
+    if (!response.ok) {
+        return null;
+    }
+
+    return response.json();
+}
+
+/** Shape an API record the way the destination cards expect it. */
+export function toDestination(item: ApiDestination): Destination {
+    return {
+        id: item._id,
+        title: item.destinationName.trim(),
+        location: item.country.trim(),
+        image: item.imageUrl,
+        category: item.category,
+        price: Number(item.price),
+        duration: item.duration.trim(),
+    };
+}
+
+/** Shape an API record the way the destination details page expects it. */
+export function toDestinationDetails(item: ApiDestination): DestinationDetails {
+    return {
+        id: item._id,
+        title: item.destinationName.trim(),
+        country: item.country.trim(),
+        category: item.category,
+        image: item.imageUrl,
+        price: Number(item.price),
+        duration: item.duration.trim(),
+        departureDate: item.departureDate,
+        overview: item.description.trim(),
+        highlights: [],
+        perks: [],
+    };
 }

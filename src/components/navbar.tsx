@@ -1,6 +1,8 @@
+'use client'
 import Image from "next/image";
 import Link from "next/link";
 import { User } from "lucide-react";
+import { useSession } from "@/lib/auth-client";
 
 const navLinks = [
   { label: "Home", href: "/", active: true },
@@ -10,6 +12,10 @@ const navLinks = [
 ];
 
 export function Navbar() {
+
+  const userInfo = useSession();
+  const user = userInfo.data?.user;
+
   return (
     <header className="sticky top-0 z-50 bg-white shadow-[0_1px_0_rgba(0,0,0,0.08)]">
       <div className="mx-auto grid h-[78px] max-w-[1400px] grid-cols-[1fr_auto_1fr] items-center gap-6 px-6 lg:px-12">
@@ -42,25 +48,36 @@ export function Navbar() {
         </Link>
 
         <div className="col-start-3 flex items-center justify-end gap-7">
-          <Link
-            href="/profile"
-            className="hidden items-center gap-2 text-[15px] font-medium text-neutral-900 transition-colors hover:text-brand sm:flex"
-          >
-            <User className="size-4" strokeWidth={1.75} aria-hidden />
-            Profile
-          </Link>
-          <Link
-            href="/signin"
-            className="hidden text-[15px] font-medium text-neutral-900 transition-colors hover:text-brand sm:block"
-          >
-            Login
-          </Link>
-          <Link
-            href="/signup"
-            className="text-[15px] font-medium text-neutral-900 transition-colors hover:text-brand"
-          >
-            Sign Up
-          </Link>
+
+
+          {
+            user ? (
+              <Link
+                href="/profile"
+                className="hidden items-center gap-2 text-[15px] font-medium text-neutral-900 transition-colors hover:text-brand sm:flex"
+              >
+                <User className="size-4" strokeWidth={1.75} aria-hidden />
+                Profile
+              </Link>
+            ) : (
+              <>
+                <Link
+                  href="/signin"
+                  className="hidden text-[15px] font-medium text-neutral-900 transition-colors hover:text-brand sm:block"
+                >
+                  Login
+                </Link>
+                <Link
+                  href="/signup"
+                  className="text-[15px] font-medium text-neutral-900 transition-colors hover:text-brand"
+                >
+                  Sign Up
+                </Link>
+              </>
+            )
+          }
+
+
         </div>
       </div>
     </header>

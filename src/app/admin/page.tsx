@@ -31,10 +31,23 @@ export default function AdminPage() {
         setSubmitted(false);
     };
 
-    const handleSubmit = (event: FormEvent<HTMLFormElement>) => {
+    const handleSubmit = async (event: FormEvent<HTMLFormElement>) => {
         event.preventDefault();
-        setSubmitted(true);
-        setForm(emptyForm);
+
+        const res = await fetch('http://localhost:5001/add-destination', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json'
+            },
+            body: JSON.stringify(form),
+        })
+
+
+        if (res.ok) {
+            setSubmitted(true);
+            setForm(emptyForm);
+        }
+
     };
 
     return (
